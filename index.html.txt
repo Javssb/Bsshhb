@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAND ARAB</title>
+
+<style>
+
+body{
+margin:0;
+overflow:hidden;
+background:black;
+font-family:Arial;
+touch-action:none;
+}
+
+#hud{
+position:fixed;
+top:10px;
+left:10px;
+color:white;
+z-index:10;
+font-size:20px;
+background:rgba(0,0,0,0.5);
+padding:10px;
+border-radius:10px;
+}
+
+#shoot{
+position:fixed;
+bottom:40px;
+right:30px;
+width:90px;
+height:90px;
+border:none;
+border-radius:50%;
+background:red;
+color:white;
+font-size:30px;
+z-index:10;
+}
+
+#jump{
+position:fixed;
+bottom:150px;
+right:40px;
+width:70px;
+height:70px;
+border:none;
+border-radius:50%;
+background:orange;
+color:white;
+font-size:20px;
+z-index:10;
+}
+
+#joystick{
+position:fixed;
+bottom:40px;
+left:30px;
+width:120px;
+height:120px;
+border-radius:50%;
+background:rgba(255,255,255,0.2);
+z-index:10;
+}
+
+#stick{
+position:absolute;
+left:35px;
+top:35px;
+width:50px;
+height:50px;
+border-radius:50%;
+background:white;
+}
+
+#menu{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:black;
+display:flex;
+justify-content:center;
+align-items:center;
+flex-direction:column;
+color:white;
+z-index:100;
+}
+
+#menu h1{
+font-size:60px;
+margin:0;
+}
+
+#startGame{
+padding:20px 40px;
+font-size:30px;
+border:none;
+border-radius:10px;
+background:red;
+color:white;
+margin-top:20px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="menu">
+<h1>LAND ARAB</h1>
+<button id="startGame">START</button>
+</div>
+
+<div id="hud">
+HP: 100<br>
+Kills: 0<br>
+Gun: AK
+</div>
+
+<button id="shoot">🔥</button>
+<button id="jump">⬆</button>
+
+<div id="joystick">
+<div id="stick"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+
+<script>
+
+//////////////////////////////
+// SOUNDS
+//////////////////////////////
+
+const walkSound = new Audio(
+"https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3"
+);
+
+walkSound.loop = true;
+
+const gunSound = new Audio(
+"https://cdn.pixabay.com/download/audio/2022/03/10/audio_270adfcb1f.mp3"
+);
+
+//////////////////////////////
+// SCENE
+//////////////////////////////
+
+const scene = new THREE.Scene();
+
+scene.background = new THREE.Color(0xd2b48c);
+
+const camera = new THREE.PerspectiveCamera(
+75,
+window.innerWidth/window.innerHeight,
+0.1,
+1000
+);
+
+const renderer = new THREE.WebGLRenderer({
+antialias:true
+});
+
+renderer.setSize(
+window.innerWidth,
+window.innerHeight
+);
+
+document.body.appendChild(renderer.domElement);
+
+//////////////////////////////
+// LIGHT
+//////////////////////////////
+
+const light = new THREE.DirectionalLight(
+0xffffff,
+1
+);
+
+light.position.set(5,10,5);
+
+scene.add(light);
+
+//////////////////////////////
+// GROUND
+//////////////////////////////
+
+const ground = new THREE.Mesh(
+
+new THREE.PlaneGeometry(300,300),
+
+new THREE.MeshStandardMaterial({
+color:0xc2b280
+})
+
+);
+
+ground.rotation.x = -Math.PI/2;
+
+scene.add(ground);
+
+//////////////////////////////
+// PLAYER
+//////////////////////////////
+
+const player = new THREE.Mesh(
+
+new THREE.BoxGeometry(1,2,1),
+
+new THREE.MeshStandardMaterial({
+color:0x00ff00
+})
+
+);
+
+player.position.y = 1;
+
+scene.add(player);
+
+camera.position.set(0,5,8);
+
+//////////////////////////////
+// VARIABLES
+//////////////////////////////
+
+let velocityY = 0;
+let gravity = -0.01;
+let kills = 0;
+let gunType = "AK";
+
+let moveX = 0;
+let moveZ = 0;
+
+let driving = false;
+
+//////////////////////////////
+// ENEMIES
+//////////////////////////////
+
+const enemies=[];
+
+for(let i=0;i<5;i++){
+
+const enemy = new THREE.Mesh(
+
+new THREE.BoxGeometry(1,2,1),
+
+new THREE.MeshStandardMaterial({
+color:0xff0000
+})
+
+);
+
+enemy.position.set(
+Math.random()*20-10,
+1,
+Math.random()*-20
+);
+
+scene.add(enemy);
+
+enemies.push(enemy);
+
+}
+
+//////////////////////////////
+// BUILDINGS
+//////////////////////////////
+
+for(let i=0;i<20;i++){
+
+const building = new THREE.Mesh(
+
+new THREE.BoxGeometry(
+Math.random()*4+2,
+Math.random()*10+5,
+Math.random()*4+2
+),
+
+new THREE.MeshStandardMaterial({
+color:0x808080
+})
+
+);
+
+building.position.set(
+Math.random()*80-40,
+3,
+Math.random()*80-40
+);
+
+scene.add(building);
+
+}
+
+//////////////////////////////
+// SAFE ZONE
+//////////////////////////////
+
+const zoneGeometry = new THREE.RingGeometry(
+40,
+41,
+64
+);
+
+const zoneMaterial = new THREE.MeshBasicMaterial({
+color:0x00ffff,
+side:THREE.DoubleSide
+});
+
+const zone = new THREE.Mesh(
+zoneGeometry,
+zoneMaterial
+);
+
+zone.rotation.x = -Math.PI/2;
+
+scene.add(zone);
+
+let zoneSize = 40;
+
+setInterval(()=>{
+
+zoneSize -= 1;
+
+zone.scale.set(
+zoneSize/40,
+zoneSize/40,
+1
+);
+
+if(zoneSize < 10){
+
+zoneSize = 40;
+
+}
+
+},3000);
+
+//////////////////////////////
+// CAR
+//////////////////////////////
+
+const car = new THREE.Mesh(
+
+new THREE.BoxGeometry(3,1,5),
+
+new THREE.MeshStandardMaterial({
+color:0x0000ff
+})
+
+);
+
+car.position.set(10,1,10);
+
+scene.add(car);
+
+//////////////////////////////
+// AIRDROP
+//////////////////////////////
+
+const airDrop = new THREE.Mesh(
+
+new THREE.BoxGeometry(2,2,2),
+
+new THREE.MeshStandardMaterial({
+color:0xff00ff
+})
+
+);
+
+airDrop.position.set(
+0,
+20,
+-30
+);
+
+scene.add(airDrop);
+
+//////////////////////////////
+// LOOT BOXES
+//////////////////////////////
+
+const lootBoxes=[];
+
+for(let i=0;i<10;i++){
+
+const loot = new THREE.Mesh(
+
+new THREE.BoxGeometry(1,1,1),
+
+new THREE.MeshStandardMaterial({
+color:0xffff00
+})
+
+);
+
+loot.position.set(
+Math.random()*50-25,
+0.5,
+Math.random()*50-25
+);
+
+scene.add(loot);
+
+lootBoxes.push(loot);
+
+}
+
+//////////////////////////////
+// JOYSTICK
+//////////////////////////////
+
+const joystick = document.getElementById("joystick");
+
+joystick.addEventListener(
+"touchmove",
+(e)=>{
+
+const touch = e.touches[0];
+
+const rect = joystick.getBoundingClientRect();
+
+const x = touch.clientX - rect.left - 60;
+const y = touch.clientY - rect.top - 60;
+
+moveX = x * 0.01;
+moveZ = y * 0.01;
+
+}
+);
+
+joystick.addEventListener(
+"touchend",
+()=>{
+
+moveX = 0;
+moveZ = 0;
+
+}
+);
+
+//////////////////////////////
+// JUMP
+//////////////////////////////
+
+document.getElementById("jump").onclick=()=>{
+
+if(player.position.y<=1.01){
+
+velocityY = 0.25;
+
+}
+
+};
+
+//////////////////////////////
+// SHOOT
+//////////////////////////////
+
+document.getElementById("shoot").onclick=()=>{
+
+gunSound.currentTime = 0;
+
+gunSound.play();
+
+const speed = gunType==="SNIPER" ? 1 : 0.5;
+
+const bullet = new THREE.Mesh(
+
+new THREE.SphereGeometry(0.2),
+
+new THREE.MeshBasicMaterial({
+color:0xffff00
+})
+
+);
+
+bullet.position.copy(player.position);
+
+scene.add(bullet);
+
+function animateBullet(){
+
+bullet.position.z -= speed;
+
+enemies.forEach((enemy,index)=>{
+
+if(enemy && bullet.position.distanceTo(enemy.position)<1){
+
+scene.remove(enemy);
+
+enemies[index]=null;
+
+kills++;
+
+document.getElementById("hud").innerHTML=
+`
+HP: 100<br>
+Kills: ${kills}<br>
+Gun: ${gunType}
+`;
+
+}
+
+});
+
+requestAnimationFrame(
+animateBullet
+);
+
+}
+
+animateBullet();
+
+};
+
+//////////////////////////////
+// GUN CHANGE
+//////////////////////////////
+
+document.addEventListener(
+"keydown",
+(e)=>{
+
+if(e.key==="1") gunType="AK";
+
+if(e.key==="2") gunType="SNIPER";
+
+if(e.key==="e"){
+
+if(player.position.distanceTo(car.position)<5){
+
+driving = !driving;
+
+}
+
+}
+
+}
+);
+
+//////////////////////////////
+// START BUTTON
+//////////////////////////////
+
+document.getElementById(
+"startGame"
+).onclick=()=>{
+
+document.getElementById(
+"menu"
+).style.display="none";
+
+};
+
+//////////////////////////////
+// LOOT SYSTEM
+//////////////////////////////
+
+function checkLoot(){
+
+lootBoxes.forEach((loot,index)=>{
+
+if(
+loot &&
+player.position.distanceTo(
+loot.position
+)<2
+){
+
+scene.remove(loot);
+
+lootBoxes[index]=null;
+
+}
+
+});
+
+}
+
+//////////////////////////////
+// AIRDROP UPDATE
+//////////////////////////////
+
+function updateAirDrop(){
+
+if(airDrop.position.y>1){
+
+airDrop.position.y -= 0.05;
+
+}
+
+}
+
+//////////////////////////////
+// MOVEMENT SOUND
+//////////////////////////////
+
+function handleMovement(){
+
+if(moveX!==0 || moveZ!==0){
+
+if(walkSound.paused){
+
+walkSound.play();
+
+}
+
+}else{
+
+walkSound.pause();
+
+}
+
+}
+
+//////////////////////////////
+// ANIMATE
+//////////////////////////////
+
+function animate(){
+
+requestAnimationFrame(
+animate
+);
+
+handleMovement();
+
+checkLoot();
+
+updateAirDrop();
+
+if(driving){
+
+car.position.x += moveX;
+
+car.position.z += moveZ;
+
+player.position.copy(
+car.position
+);
+
+player.position.y = 2;
+
+}else{
+
+player.position.x += moveX;
+
+player.position.z += moveZ;
+
+}
+
+velocityY += gravity;
+
+player.position.y += velocityY;
+
+if(player.position.y<1){
+
+player.position.y=1;
+
+velocityY=0;
+
+}
+
+camera.position.x =
+player.position.x;
+
+camera.position.z =
+player.position.z + 8;
+
+camera.lookAt(
+player.position
+);
+
+renderer.render(
+scene,
+camera
+);
+
+}
+
+animate();
+
+//////////////////////////////
+// RESIZE
+//////////////////////////////
+
+window.addEventListener(
+"resize",
+()=>{
+
+camera.aspect =
+window.innerWidth /
+window.innerHeight;
+
+camera.updateProjectionMatrix();
+
+renderer.setSize(
+window.innerWidth,
+window.innerHeight
+);
+
+}
+);
+
+</script>
+
+</body>
+</html>
