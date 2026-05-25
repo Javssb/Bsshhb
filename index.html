@@ -21,7 +21,7 @@ top:10px;
 left:10px;
 color:white;
 z-index:10;
-font-size:20px;
+font-size:18px;
 background:rgba(0,0,0,0.5);
 padding:10px;
 border-radius:10px;
@@ -113,6 +113,7 @@ margin-top:20px;
 
 <div id="menu">
 <h1>LAND ARAB</h1>
+<p>Battle Royale Iraq 🔥</p>
 <button id="startGame">START</button>
 </div>
 
@@ -159,7 +160,7 @@ const camera = new THREE.PerspectiveCamera(
 75,
 window.innerWidth/window.innerHeight,
 0.1,
-1000
+2000
 );
 
 const renderer = new THREE.WebGLRenderer({
@@ -170,6 +171,8 @@ renderer.setSize(
 window.innerWidth,
 window.innerHeight
 );
+
+renderer.shadowMap.enabled = true;
 
 document.body.appendChild(renderer.domElement);
 
@@ -182,7 +185,9 @@ const light = new THREE.DirectionalLight(
 1
 );
 
-light.position.set(5,10,5);
+light.position.set(20,30,10);
+
+light.castShadow = true;
 
 scene.add(light);
 
@@ -192,7 +197,7 @@ scene.add(light);
 
 const ground = new THREE.Mesh(
 
-new THREE.PlaneGeometry(300,300),
+new THREE.PlaneGeometry(500,500),
 
 new THREE.MeshStandardMaterial({
 color:0xc2b280
@@ -201,6 +206,8 @@ color:0xc2b280
 );
 
 ground.rotation.x = -Math.PI/2;
+
+ground.receiveShadow = true;
 
 scene.add(ground);
 
@@ -220,6 +227,8 @@ color:0x00ff00
 
 player.position.y = 1;
 
+player.castShadow = true;
+
 scene.add(player);
 
 camera.position.set(0,5,8);
@@ -232,11 +241,49 @@ let velocityY = 0;
 let gravity = -0.01;
 let kills = 0;
 let gunType = "AK";
+let hp = 100;
 
 let moveX = 0;
 let moveZ = 0;
 
 let driving = false;
+let inPlane = true;
+
+//////////////////////////////
+// PLANE
+//////////////////////////////
+
+const plane = new THREE.Mesh(
+
+new THREE.BoxGeometry(8,2,20),
+
+new THREE.MeshStandardMaterial({
+color:0x555555
+})
+
+);
+
+plane.position.set(0,30,80);
+
+scene.add(plane);
+
+//////////////////////////////
+// PARACHUTE
+//////////////////////////////
+
+const parachute = new THREE.Mesh(
+
+new THREE.SphereGeometry(3),
+
+new THREE.MeshStandardMaterial({
+color:0xff0000
+})
+
+);
+
+parachute.visible = false;
+
+scene.add(parachute);
 
 //////////////////////////////
 // ENEMIES
@@ -244,7 +291,7 @@ let driving = false;
 
 const enemies=[];
 
-for(let i=0;i<5;i++){
+for(let i=0;i<10;i++){
 
 const enemy = new THREE.Mesh(
 
@@ -257,10 +304,12 @@ color:0xff0000
 );
 
 enemy.position.set(
-Math.random()*20-10,
+Math.random()*100-50,
 1,
-Math.random()*-20
+Math.random()*-100
 );
+
+enemy.castShadow = true;
 
 scene.add(enemy);
 
@@ -272,14 +321,14 @@ enemies.push(enemy);
 // BUILDINGS
 //////////////////////////////
 
-for(let i=0;i<20;i++){
+for(let i=0;i<40;i++){
 
 const building = new THREE.Mesh(
 
 new THREE.BoxGeometry(
-Math.random()*4+2,
-Math.random()*10+5,
-Math.random()*4+2
+Math.random()*5+2,
+Math.random()*15+5,
+Math.random()*5+2
 ),
 
 new THREE.MeshStandardMaterial({
@@ -289,10 +338,12 @@ color:0x808080
 );
 
 building.position.set(
-Math.random()*80-40,
-3,
-Math.random()*80-40
+Math.random()*200-100,
+5,
+Math.random()*200-100
 );
+
+building.castShadow = true;
 
 scene.add(building);
 
@@ -383,12 +434,12 @@ airDrop.position.set(
 scene.add(airDrop);
 
 //////////////////////////////
-// LOOT BOXES
+// LOOT
 //////////////////////////////
 
 const lootBoxes=[];
 
-for(let i=0;i<10;i++){
+for(let i=0;i<15;i++){
 
 const loot = new THREE.Mesh(
 
@@ -401,14 +452,44 @@ color:0xffff00
 );
 
 loot.position.set(
-Math.random()*50-25,
+Math.random()*100-50,
 0.5,
-Math.random()*50-25
+Math.random()*100-50
 );
 
 scene.add(loot);
 
 lootBoxes.push(loot);
+
+}
+
+//////////////////////////////
+// MEDKITS
+//////////////////////////////
+
+const medkits=[];
+
+for(let i=0;i<5;i++){
+
+const medkit = new THREE.Mesh(
+
+new THREE.BoxGeometry(1,1,1),
+
+new THREE.MeshStandardMaterial({
+color:0x00ffff
+})
+
+);
+
+medkit.position.set(
+Math.random()*50-25,
+0.5,
+Math.random()*50-25
+);
+
+scene.add(medkit);
+
+medkits.push(medkit);
 
 }
 
@@ -446,10 +527,67 @@ moveZ = 0;
 );
 
 //////////////////////////////
+// START GAME
+//////////////////////////////
+
+document.getElementById(
+"startGame"
+).onclick=()=>{
+
+document.getElementById(
+"menu"
+).style.display="none";
+
+};
+
+//////////////////////////////
+// PARACHUTE
+//////////////////////////////
+
+document.addEventListener(
+"keydown",
+(e)=>{
+
+if(e.key==="f" && inPlane){
+
+inPlane = false;
+
+parachute.visible = true;
+
+player.position.copy(
+plane.position
+);
+
+}
+
+if(e.key==="1") gunType="AK";
+
+if(e.key==="2") gunType="SNIPER";
+
+if(e.key==="e"){
+
+if(
+player.position.distanceTo(
+car.position
+)<5
+){
+
+driving = !driving;
+
+}
+
+}
+
+}
+);
+
+//////////////////////////////
 // JUMP
 //////////////////////////////
 
-document.getElementById("jump").onclick=()=>{
+document.getElementById(
+"jump"
+).onclick=()=>{
 
 if(player.position.y<=1.01){
 
@@ -463,13 +601,16 @@ velocityY = 0.25;
 // SHOOT
 //////////////////////////////
 
-document.getElementById("shoot").onclick=()=>{
+document.getElementById(
+"shoot"
+).onclick=()=>{
 
 gunSound.currentTime = 0;
 
 gunSound.play();
 
-const speed = gunType==="SNIPER" ? 1 : 0.5;
+const speed =
+gunType==="SNIPER" ? 1 : 0.5;
 
 const bullet = new THREE.Mesh(
 
@@ -481,7 +622,9 @@ color:0xffff00
 
 );
 
-bullet.position.copy(player.position);
+bullet.position.copy(
+player.position
+);
 
 scene.add(bullet);
 
@@ -489,9 +632,15 @@ function animateBullet(){
 
 bullet.position.z -= speed;
 
-enemies.forEach((enemy,index)=>{
+enemies.forEach(
+(enemy,index)=>{
 
-if(enemy && bullet.position.distanceTo(enemy.position)<1){
+if(
+enemy &&
+bullet.position.distanceTo(
+enemy.position
+)<1
+){
 
 scene.remove(enemy);
 
@@ -499,12 +648,7 @@ enemies[index]=null;
 
 kills++;
 
-document.getElementById("hud").innerHTML=
-`
-HP: 100<br>
-Kills: ${kills}<br>
-Gun: ${gunType}
-`;
+updateHUD();
 
 }
 
@@ -521,51 +665,31 @@ animateBullet();
 };
 
 //////////////////////////////
-// GUN CHANGE
+// HUD
 //////////////////////////////
 
-document.addEventListener(
-"keydown",
-(e)=>{
-
-if(e.key==="1") gunType="AK";
-
-if(e.key==="2") gunType="SNIPER";
-
-if(e.key==="e"){
-
-if(player.position.distanceTo(car.position)<5){
-
-driving = !driving;
-
-}
-
-}
-
-}
-);
-
-//////////////////////////////
-// START BUTTON
-//////////////////////////////
+function updateHUD(){
 
 document.getElementById(
-"startGame"
-).onclick=()=>{
+"hud"
+).innerHTML=
+`
+HP: ${Math.floor(hp)}<br>
+Kills: ${kills}<br>
+Gun: ${gunType}<br>
+Zone: ${Math.floor(zoneSize)}
+`;
 
-document.getElementById(
-"menu"
-).style.display="none";
-
-};
+}
 
 //////////////////////////////
-// LOOT SYSTEM
+// GAME SYSTEMS
 //////////////////////////////
 
 function checkLoot(){
 
-lootBoxes.forEach((loot,index)=>{
+lootBoxes.forEach(
+(loot,index)=>{
 
 if(
 loot &&
@@ -584,9 +708,130 @@ lootBoxes[index]=null;
 
 }
 
-//////////////////////////////
-// AIRDROP UPDATE
-//////////////////////////////
+function checkMedkits(){
+
+medkits.forEach(
+(medkit,index)=>{
+
+if(
+medkit &&
+player.position.distanceTo(
+medkit.position
+)<2
+){
+
+scene.remove(medkit);
+
+medkits[index]=null;
+
+hp += 25;
+
+if(hp>100) hp=100;
+
+updateHUD();
+
+}
+
+});
+
+}
+
+function checkZoneDamage(){
+
+const dist = Math.sqrt(
+player.position.x*
+player.position.x +
+player.position.z*
+player.position.z
+);
+
+if(dist > zoneSize){
+
+hp -= 0.05;
+
+if(hp<0) hp=0;
+
+updateHUD();
+
+}
+
+}
+
+function updateEnemies(){
+
+enemies.forEach((enemy)=>{
+
+if(enemy){
+
+const dx =
+player.position.x -
+enemy.position.x;
+
+const dz =
+player.position.z -
+enemy.position.z;
+
+enemy.position.x += dx * 0.001;
+
+enemy.position.z += dz * 0.001;
+
+}
+
+});
+
+}
+
+function updatePlane(){
+
+if(inPlane){
+
+plane.position.z -= 0.3;
+
+player.position.copy(
+plane.position
+);
+
+camera.position.x =
+player.position.x;
+
+camera.position.y =
+player.position.y + 5;
+
+camera.position.z =
+player.position.z + 15;
+
+camera.lookAt(player.position);
+
+}
+
+}
+
+function updateParachute(){
+
+if(
+!inPlane &&
+parachute.visible
+){
+
+if(player.position.y > 2){
+
+player.position.y -= 0.05;
+
+parachute.position.copy(
+player.position
+);
+
+parachute.position.y += 4;
+
+}else{
+
+parachute.visible = false;
+
+}
+
+}
+
+}
 
 function updateAirDrop(){
 
@@ -597,10 +842,6 @@ airDrop.position.y -= 0.05;
 }
 
 }
-
-//////////////////////////////
-// MOVEMENT SOUND
-//////////////////////////////
 
 function handleMovement(){
 
@@ -621,6 +862,64 @@ walkSound.pause();
 }
 
 //////////////////////////////
+// FPS
+//////////////////////////////
+
+const fpsCounter =
+document.createElement("div");
+
+fpsCounter.style.position="fixed";
+fpsCounter.style.bottom="10px";
+fpsCounter.style.left="10px";
+fpsCounter.style.color="white";
+fpsCounter.style.zIndex="30";
+
+document.body.appendChild(
+fpsCounter
+);
+
+let lastTime = performance.now();
+
+function updateFPS(){
+
+const now = performance.now();
+
+const fps = Math.round(
+1000/(now-lastTime)
+);
+
+lastTime = now;
+
+fpsCounter.innerHTML =
+"FPS: " + fps;
+
+}
+
+//////////////////////////////
+// MINI MAP
+//////////////////////////////
+
+const miniMap =
+document.createElement("div");
+
+miniMap.style.position="fixed";
+miniMap.style.top="10px";
+miniMap.style.right="10px";
+miniMap.style.width="150px";
+miniMap.style.height="150px";
+miniMap.style.background=
+"rgba(0,0,0,0.5)";
+miniMap.style.border=
+"2px solid white";
+miniMap.style.borderRadius=
+"10px";
+miniMap.style.zIndex="20";
+
+document.body.appendChild(
+miniMap
+);
+
+//////////////////////////////
 // ANIMATE
 //////////////////////////////
 
@@ -634,7 +933,21 @@ handleMovement();
 
 checkLoot();
 
+checkMedkits();
+
+checkZoneDamage();
+
+updateEnemies();
+
+updatePlane();
+
+updateParachute();
+
 updateAirDrop();
+
+updateFPS();
+
+if(!inPlane){
 
 if(driving){
 
@@ -653,6 +966,8 @@ player.position.y = 2;
 player.position.x += moveX;
 
 player.position.z += moveZ;
+
+}
 
 }
 
@@ -684,6 +999,8 @@ camera
 );
 
 }
+
+updateHUD();
 
 animate();
 
